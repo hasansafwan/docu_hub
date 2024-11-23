@@ -14,6 +14,9 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain.schema.runnable.config import RunnableConfig
+
+import chainlit as cl
 
 load_dotenv()
 
@@ -109,12 +112,17 @@ class RAGAgentSystem:
         # Store TOC data in state
         state.toc_data = toc_data
 
+        state.next_step = "format_toc"
+        return state
+    
+    def _format_toc(self, state: AgentState) -> AgentState:
+        """Return formatted table of contents"""
         # Generate formatted TOC response
         chain = self._create_toc_prompt() | self.llm
 
         response = chain.invoke({
             "messages": [HumanMessage(content=state.messages[-1]["content"])],
-            "toc_data": json.dumps(toc_data, indent=2)
+            "toc_data": json.dumps(state.toc_data, indent=2)
         })
 
         state.messages.append({
@@ -211,6 +219,7 @@ class RAGAgentSystem:
         # Add nodes
         workflow.add_node("route_query", self._route_query)
         workflow.add_node("generate_toc", self._generate_toc)
+        workflow.add_node("format_toc", self._format_toc)
         workflow.add_node("determine_collection", self._determine_collection)
         workflow.add_node("retrieve_documents", self._retrieve_documents)
         workflow.add_node("generate_response", self._generate_response)
@@ -231,7 +240,8 @@ class RAGAgentSystem:
         workflow.add_edge("determine_collection", "retrieve_documents")
         workflow.add_edge("retrieve_documents", "generate_response")
         workflow.add_edge("generate_response", END)
-        workflow.add_edge("generate_toc", END)
+        workflow.add_edge("generate_toc", "format_toc")
+        workflow.add_edge("format_toc", END)
 
         return workflow.compile()
     
@@ -256,6 +266,39 @@ class RAGAgentSystem:
         with open("workflow.png", "wb") as f:
             f.write(bytes)
     
+
+embeddings = OllamaEmbeddings(model="nomic-embed-text")
+
+# Initialize the document retriever
+retriever = DocumentRetriever(embeddings)
+    
+# Initialize the RAG agent system
+rag_system = RAGAgentSystem(retriever)
+
+@cl.on_message
+async def on_message(msg: cl.Message):
+    config = {
+        "configurable":
+        {
+            "thread_id": cl.context.session.id
+        }
+    }
+    cb = cl.LangchainCallbackHandler()
+    final_answer = cl.Message(content="")
+
+    # Initialize state
+    state = AgentState(
+        messages=[{"role": "user", "content": msg.content}]
+    )
+
+    for msg, metadata in rag_system.workflow.stream(state, stream_mode="messages", config=RunnableConfig(callbacks=[cb], **config)):
+        if (
+            msg.content and not isinstance(msg, HumanMessage)
+            and metadata["langgraph_node"] in ["format_toc", "generate_response"]
+        ):
+            await final_answer.stream_token(msg.content)
+    
+    await final_answer.send()
 
 # Example usage
 if __name__ == "__main__":

@@ -1,9 +1,0 @@
-Human Nervous System: Overview
-==============================
-
-
-The nervous system controls and coordinates body functions. It consists of:
-1. Central Nervous System (CNS): Brain and spinal cord.
-2. Peripheral Nervous System (PNS): Nerves connecting the CNS to the body.
-
-Neurons are the primary cells transmitting signals. Disorders like Parkinson's and Alzheimer's affect the nervous system's function.

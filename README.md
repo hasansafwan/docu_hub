@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements a Retrieval-Augmented Generation (RAG) system using LangGraph for orchestrating the workflow. The system provides a flexible document retrieval and question-answering capability with support for multiple document collections and intelligent query routing.
+This project implements a Retrieval-Augmented Generation (RAG) system using LangGraph for orchestrating the workflow. The system provides a flexible document retrieval and question-answering capability with support for multiple document collections and intelligent query routing, featuring both CLI and web interface options through Chainlit.
 
 ## 🌟 Key Features
 
@@ -12,6 +12,8 @@ This project implements a Retrieval-Augmented Generation (RAG) system using Lang
 - Flexible embedding model support (OpenAI, Ollama)
 - Vector store persistence for efficient document retrieval
 - Workflow visualization using Mermaid diagrams
+- Interactive web interface using Chainlit
+- Real-time streaming of responses
 
 ## 🏗️ Architecture
 
@@ -30,6 +32,7 @@ The system consists of two main components:
 - Implements intelligent query routing
 - Generates responses using retrieved documents
 - Provides table of contents functionality
+- Supports both CLI and web-based interactions through Chainlit
 
 The workflow follows this process:
 
@@ -43,7 +46,7 @@ The workflow follows this process:
 ### Prerequisites
 
 ```bash
-pip install langchain langchain-community langchain-openai langchain-ollama langgraph chromadb python-dotenv pydantic
+pip install langchain langchain-community langchain-openai langchain-ollama langgraph chromadb python-dotenv pydantic chainlit
 ```
 
 ### Environment Setup
@@ -55,6 +58,8 @@ OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### Basic Usage
+
+#### CLI Mode
 
 ```python
 from document_retriever import DocumentRetriever
@@ -76,6 +81,21 @@ retriever.add_documents_in_directory('./documents/biology', 'biology_docs')
 response = rag_system.query("What is DNA?")
 print(response)
 ```
+
+#### Web Interface Mode
+
+Run the system with Chainlit interface:
+
+```bash
+chainlit run rag_agent_system.py
+```
+
+This will start a web server where you can interact with the RAG system through a user-friendly interface with features like:
+
+- Real-time response streaming
+- Session management
+- Interactive chat history
+- Progress indicators for document retrieval and processing
 
 ## 📁 Project Structure
 
@@ -117,6 +137,10 @@ def _get_loader_for_file(self, file_path: str) -> BaseLoader:
     }
     # ... rest of the method
 ```
+
+### Customizing the Web Interface
+
+You can customize the Chainlit interface by modifying the callback handler in `rag_agent_system.py` or by creating a `chainlit.md` file for custom welcome messages and documentation.
 
 ## 📊 Workflow Visualization
 

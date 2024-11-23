@@ -8,3 +8,4 @@ chromadb
 pypdf
 langgraph
 langchain-ollama
+chainlit
