@@ -1,0 +1,10 @@
+Introduction to Photosynthesis
+==============================
+
+
+Photosynthesis is the process by which plants, algae, and some bacteria convert sunlight into chemical energy. 
+Key stages:
+1. Light-dependent reactions: Occur in the thylakoid membranes, producing ATP and NADPH.
+2. Calvin Cycle: Occurs in the stroma, converting carbon dioxide into glucose.
+
+Chlorophyll in chloroplasts plays a crucial role by absorbing light energy.

@@ -1,0 +1,9 @@
+DNA and Genetics: The Basics
+============================
+
+
+DNA (Deoxyribonucleic Acid) is the molecule that carries genetic information. Key features:
+1. Double helix structure made of nucleotides (A, T, C, G).
+2. Genes: Specific sequences that code for proteins.
+
+Genetics explores inheritance, including Mendel's laws, dominant and recessive traits, and mutations that lead to genetic variation.
