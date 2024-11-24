@@ -137,6 +137,7 @@ class RAGAgentSystem:
              
              Anaylze the user's query and determine the most appropriate collection to search.
              Respond with ONLY the collection name, nothing else.
+             If you do not find the collection name, return "NOT FOUND".
              """),
              MessagesPlaceholder(variable_name="messages"),
         ])
@@ -167,14 +168,19 @@ class RAGAgentSystem:
             "messages": [HumanMessage(content=last_message)],
             "collections": ", ".join(collections)
         })
-
-        state.collection_name = response.content.strip()
+        stripped_response = response.content.strip()
+        
+        state.collection_name = "" if stripped_response == "NOT FOUND" else stripped_response
         state.next_step = "retrieve_documents"
         return state
     
     def _retrieve_documents(self, state: AgentState) -> AgentState:
         """Retrieve relevant documents from the selected collection"""
         last_message = state.messages[-1]["content"]
+
+        if not state.collection_name:
+            state.next_step = "generate_response"
+            return state
 
         # Retrieve documents
         docs = self.retriever.retrieve_documents(
@@ -266,7 +272,7 @@ class RAGAgentSystem:
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
 # mistral chat model
-chat_model = ChatOllama(model="mistral")
+chat_model = ChatOllama(model="mistral", temperature=0.0)
 
 # Initialize the document retriever
 retriever = DocumentRetriever(embeddings)
@@ -277,8 +283,7 @@ rag_system = RAGAgentSystem(retriever, chat_model)
 @cl.on_message
 async def on_message(msg: cl.Message):
     config = {
-        "configurable":
-        {
+        "configurable": {
             "thread_id": cl.context.session.id
         }
     }
@@ -289,15 +294,65 @@ async def on_message(msg: cl.Message):
     state = AgentState(
         messages=[{"role": "user", "content": msg.content}]
     )
+    
+    # Track the last node to avoid creating duplicate steps
+    last_node = None
+    steps = {}
+    
+    async def create_step(node_name: str) -> cl.Step:
+        """Create and start a new step with appropriate emoji and name"""
+        step_info = {
+            "route_query": ("📋", "Analyzing Query Type"),
+            "determine_collection": ("🔍", "Determining Collection"),
+            "retrieve_documents": ("📚", "Retrieving Documents"),
+            "generate_response": ("💭", "Generating Response"),
+            "generate_toc": ("📑", "Generating Table of Contents"),
+            "format_toc": ("✨", "Formatting Table of Contents")
+        }
+        
+        if node_name in step_info:
+            emoji, name = step_info[node_name]
+            step = cl.Step(name=f"{emoji} {name}")
+            await step.__aenter__()
+            return step
+        return None
 
-    for msg, metadata in rag_system.workflow.stream(state, stream_mode="messages", config=RunnableConfig(callbacks=[cb], **config)):
-        if (
-            msg.content and not isinstance(msg, HumanMessage)
-            and metadata["langgraph_node"] in ["format_toc", "generate_response"]
+    try:
+        for msg, metadata in rag_system.workflow.stream(
+            state, 
+            stream_mode="messages",
+            config=RunnableConfig(callbacks=[cb], **config)
         ):
-            await final_answer.stream_token(msg.content)
+            # Get current node
+            current_node = metadata.get("langgraph_node", "")
+            
+            # Create new step only when node changes and it's not a streaming node
+            if current_node != last_node and current_node:
+                # Create new step if it's a new node
+                if current_node not in steps:
+                    steps[current_node] = await create_step(current_node)
+                last_node = current_node
+            
+            # Handle response streaming separately
+            if (
+                msg.content and 
+                not isinstance(msg, HumanMessage) and 
+                metadata["langgraph_node"] in ["format_toc", "generate_response"]
+            ):
+                await final_answer.stream_token(msg.content)
+                
+                # Update the output of the current step
+                if steps.get(current_node):
+                    steps[current_node].output = final_answer.content
+        
+    finally:
+        # Close all steps in reverse order
+        for step in reversed(list(steps.values())):
+            if step:
+                await step.__aexit__(None, None, None)
     
     await final_answer.send()
+
 
 # Example usage
 if __name__ == "__main__":
@@ -305,7 +360,7 @@ if __name__ == "__main__":
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
     # mistral chat model
-    chat_model = ChatOllama(model="mistral")
+    chat_model = ChatOllama(model="mistral", temperature=0.0)
     # Initialize the document retriever
     retriever = DocumentRetriever(embeddings)
     

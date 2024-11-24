@@ -12,8 +12,11 @@ This project implements a Retrieval-Augmented Generation (RAG) system using Lang
 - Flexible embedding model support (OpenAI, Ollama)
 - Vector store persistence for efficient document retrieval
 - Workflow visualization using Mermaid diagrams
-- Interactive web interface using Chainlit
-- Real-time streaming of responses
+- Interactive web interface using Chainlit with real-time streaming
+- Session management and conversation history
+- Progress tracking for document processing
+- Batch processing for large document sets
+- Customizable chunk sizes and overlap for document splitting
 
 ## 🏗️ Architecture
 
@@ -25,6 +28,8 @@ The system consists of two main components:
 - Supports multiple file formats
 - Manages vector embeddings and similarity search
 - Provides collection-based document organization
+- Implements batch processing for memory efficiency
+- Supports customizable document chunking strategies
 
 ### 2. RAG Agent System
 
@@ -33,6 +38,7 @@ The system consists of two main components:
 - Generates responses using retrieved documents
 - Provides table of contents functionality
 - Supports both CLI and web-based interactions through Chainlit
+- Features step-by-step progress tracking with emoji indicators
 
 The workflow follows this process:
 
@@ -45,9 +51,19 @@ The workflow follows this process:
 
 ### Prerequisites
 
+Install dependencies using requirements.txt:
+
 ```bash
-pip install langchain langchain-community langchain-openai langchain-ollama langgraph chromadb python-dotenv pydantic chainlit
+pip install -r requirements.txt
 ```
+
+Or install individually:
+
+```bash
+pip install langchain langchain-community langchain-openai langchain-ollama langgraph chromadb python-dotenv pydantic chainlit ollama<0.4.0
+```
+
+Note: Ollama version must be below 0.4.0 for compatibility.
 
 ### Environment Setup
 
@@ -57,9 +73,9 @@ Create a `.env` file with your API keys:
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-### Basic Usage
+### Usage Options
 
-#### CLI Mode
+#### 1. CLI Mode
 
 ```python
 from document_retriever import DocumentRetriever
@@ -68,7 +84,7 @@ from langchain_ollama import OllamaEmbeddings, ChatOllama
 
 # Initialize with Ollama
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
-chat_model = ChatOllama(model="mistral")
+chat_model = ChatOllama(model="mistral", temperature=0.0)
 
 # Create retriever and system
 retriever = DocumentRetriever(embeddings)
@@ -82,20 +98,46 @@ response = rag_system.query("What is DNA?")
 print(response)
 ```
 
-#### Web Interface Mode
+#### 2. Web Interface Mode (Chainlit)
 
-Run the system with Chainlit interface:
+##### Creating a Chainlit App
+
+1. Create a `chainlit.md` file in your project root to customize the welcome message:
+
+```markdown
+# Welcome to RAG Assistant! 👋
+
+This is a Retrieval-Augmented Generation (RAG) system that can help answer your questions based on the available document collections.
+
+## Features
+
+- Intelligent query routing
+- Table of Contents generation
+- Document-based question answering
+- Real-time response streaming
+
+## How to use
+
+1. Ask about available topics using questions like "What information is available?"
+2. Ask specific questions about the documents in the collections
+3. Watch as the system retrieves and processes relevant information in real-time
+```
+
+##### Running the Chainlit App
+
+Start the web interface with:
 
 ```bash
 chainlit run rag_agent_system.py
 ```
 
-This will start a web server where you can interact with the RAG system through a user-friendly interface with features like:
+This will:
 
-- Real-time response streaming
-- Session management
-- Interactive chat history
-- Progress indicators for document retrieval and processing
+1. Start a local web server (typically at http://localhost:8000)
+2. Open a browser window with the interactive chat interface
+3. Enable real-time streaming of responses
+4. Provide session management and chat history
+5. Show progress indicators for each processing step
 
 ## 📁 Project Structure
 
@@ -103,6 +145,8 @@ This will start a web server where you can interact with the RAG system through 
 .
 ├── document_retriever.py    # Document ingestion and retrieval
 ├── rag_agent_system.py      # Main RAG system implementation
+├── chainlit.md             # Chainlit welcome message and documentation
+├── requirements.txt        # Project dependencies
 ├── vectorstore/            # Directory for storing document embeddings
 └── documents/             # Directory for source documents
 ```
@@ -110,8 +154,6 @@ This will start a web server where you can interact with the RAG system through 
 ## 🛠️ Customization
 
 ### Using Different Embedding Models
-
-The system supports various embedding models:
 
 ```python
 # Using OpenAI embeddings
@@ -123,9 +165,28 @@ from langchain_ollama import OllamaEmbeddings
 retriever = DocumentRetriever(OllamaEmbeddings(model="nomic-embed-text"))
 ```
 
+### Configuring Document Processing
+
+You can customize document processing parameters:
+
+```python
+retriever = DocumentRetriever(
+    embedding_model=embeddings,
+    vector_store_path='./custom_vectorstore',
+    max_batch_size=50  # Adjust batch size for memory management
+)
+
+# Custom document splitting
+documents = retriever._split_documents(
+    documents,
+    chunk_size=500,    # Adjust chunk size
+    chunk_overlap=50   # Adjust overlap
+)
+```
+
 ### Adding New Document Types
 
-Extend the `_get_loader_for_file` method in `DocumentRetriever` to support additional file types:
+Extend the `_get_loader_for_file` method in `DocumentRetriever`:
 
 ```python
 def _get_loader_for_file(self, file_path: str) -> BaseLoader:
@@ -138,13 +199,22 @@ def _get_loader_for_file(self, file_path: str) -> BaseLoader:
     # ... rest of the method
 ```
 
-### Customizing the Web Interface
+### Customizing the Chainlit Interface
 
-You can customize the Chainlit interface by modifying the callback handler in `rag_agent_system.py` or by creating a `chainlit.md` file for custom welcome messages and documentation.
+The system includes built-in step tracking with emojis:
+
+- 📋 Analyzing Query Type
+- 🔍 Determining Collection
+- 📚 Retrieving Documents
+- 💭 Generating Response
+- 📑 Generating Table of Contents
+- ✨ Formatting Table of Contents
+
+You can customize these in the `create_step` function in `rag_agent_system.py`.
 
 ## 📊 Workflow Visualization
 
-The system can generate a visual representation of the workflow:
+Generate a visual representation of the workflow:
 
 ```python
 rag_system.draw_graph_diagram()  # Generates workflow.png
