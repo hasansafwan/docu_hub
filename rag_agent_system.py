@@ -1,5 +1,4 @@
 from typing import Dict, List, Any
-import json
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from document_retriever import DocumentRetriever
@@ -97,17 +96,14 @@ class RAGAgentSystem:
             # Extract topics using LLM
             topic_prompt = [
                 ("system", """analyze the following document content and identify main topics.
-                 Return ONLY a JSON array of topics, nothing else."""),
+                 Return the result as a list of topics, nothing else.
+                 """),
                  ("user", "\n\n".join([doc.page_content for doc in docs]))
             ]
 
             topics_response = self.llm.invoke(topic_prompt)
-            try:
-                topics = json.loads(topics_response.content)
-            except:
-                topics = ["General Content"]
             
-            toc_data[collection] = topics
+            toc_data[collection] = topics_response.content
         
         # Store TOC data in state
         state.toc_data = toc_data
@@ -122,7 +118,7 @@ class RAGAgentSystem:
 
         response = chain.invoke({
             "messages": [HumanMessage(content=state.messages[-1]["content"])],
-            "toc_data": json.dumps(state.toc_data, indent=2)
+            "toc_data": state.toc_data
         })
 
         state.messages.append({
@@ -269,11 +265,14 @@ class RAGAgentSystem:
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
+# mistral chat model
+chat_model = ChatOllama(model="mistral")
+
 # Initialize the document retriever
 retriever = DocumentRetriever(embeddings)
     
 # Initialize the RAG agent system
-rag_system = RAGAgentSystem(retriever)
+rag_system = RAGAgentSystem(retriever, chat_model)
 
 @cl.on_message
 async def on_message(msg: cl.Message):

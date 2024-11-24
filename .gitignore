@@ -5,3 +5,6 @@ __pycache__
 venv/
 documents/
 vectorstore/
+.chainlit/
+chainlit.md
+.files/
